@@ -1,0 +1,124 @@
+<html>
+<head>
+    <title>Student CRUD</title>
+</head>
+<body>
+
+    <input type="text" id="name" placeholder="Name"><br>
+    <input type="email" id="email" placeholder="Email"><br>
+    <input type="text" id="rno" placeholder="Roll No"><br>
+    <input type="text" id="branch" placeholder="Branch"><br>
+
+    <input type="button" id="b1" value="INSERT">
+    <input type="button" id="b2" value="UPDATE">
+    <input type="button" id="b3" value="DELETE">
+    <input type="button" id="b4" value="DISPLAY">
+
+    <p id="output"></p>
+
+    <script type="module">
+        //This part of code is to be copied from firebase console
+        import { initializeApp }
+        from "https://www.gstatic.com/firebasejs/13.1.0/firebase-app.js";
+
+        import {
+            getDatabase, ref, set, update, remove, get, child
+        } from "https://www.gstatic.com/firebasejs/13.1.0/firebase-database.js";
+
+        const firebaseConfig = {
+    apiKey: "YOUR API_KEY",
+    databaseURL: "YOUR DB_URL", //add this extra variable to connect the database with firebase app
+    authDomain: "newproj-18911.firebaseapp.com",
+    projectId: "newproj-18911",
+    storageBucket: "newproj-18911.firebasestorage.app",
+    messagingSenderId: "174474268428",
+    appId: "1:174474268428:web:e05b244e15a72867a3c329",
+    measurementId: "G-4TN822SFS0"
+  };
+
+
+        const app = initializeApp(firebaseConfig);
+       
+        //Learn from here
+        //These two lines are used to connect the database with the firebase app
+        const db = getDatabase(app);
+        const dbref = ref(db);
+
+        //Compulsory to add event listeners to buttons. You can't see the changes in the database without adding event listeners to buttons.
+        document.getElementById("b1").addEventListener("click", insertData);
+        document.getElementById("b2").addEventListener("click", updateData);
+        document.getElementById("b3").addEventListener("click", deleteData);
+        document.getElementById("b4").addEventListener("click", displayData);
+
+        function insertData() {
+            var n = document.getElementById("name").value;
+            var e = document.getElementById("email").value;
+            var r = document.getElementById("rno").value;
+            var b = document.getElementById("branch").value;
+
+            var ob = {
+                name: n,
+                email: e,
+                rno: r,
+                branch: b
+            };
+
+            set(ref(db, "Student/" + r), ob);
+            alert("Student data inserted successfully");
+        }
+
+        function updateData() {
+            var n = document.getElementById("name").value;
+            var e = document.getElementById("email").value;
+            var r = document.getElementById("rno").value;
+            var b = document.getElementById("branch").value;
+
+            var ob = {
+                name: n,
+                email: e,
+                rno: r,
+                branch: b
+            };
+
+            update(ref(db, "Student/" + r), ob);
+            alert("Student data updated successfully");
+        }
+
+        function deleteData() {
+            var r = document.getElementById("rno").value;
+
+            remove(ref(db, "Student/" + r));
+            alert("Student data deleted successfully");
+        }
+
+       function displayData() {
+    var r = document.getElementById("rno").value;
+
+    if (r == "") {
+        alert("Please enter roll number");
+    }
+    else {
+        get(ref(db, "Student/" + r)).then(function(data) {
+
+            if (data.exists()) {
+                var ob = data.val();
+
+                document.getElementById("output").innerHTML =
+                    "Roll No: " + ob.rno +
+                    "<br>Name: " + ob.name +
+                    "<br>Email: " + ob.email +
+                    "<br>Branch: " + ob.branch;
+            }
+            else {
+                alert("No data found");
+            }
+
+        }).catch(function(error) {
+            alert(error.message);
+        });
+    }
+}
+
+    </script>
+</body>
+</html>
