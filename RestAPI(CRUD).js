@@ -1,95 +1,112 @@
 
-const express = require("express");
+const http = require('http');
 
-const app = express();
-
-app.use(express.json());
-
-// Student data
 var students = [
     { id: 1, name: "Ananya", marks: 90 },
     { id: 2, name: "Rahul", marks: 85 }
 ];
 
-// INSERT
-app.post("/insert", function(req, res) {
+const server = http.createServer(function(req, res) {
 
-    var ob = {
-        id: req.body.id,
-        name: req.body.name,
-        marks: req.body.marks
-    };
+    // CREATE - Insert
+    if (req.method === 'POST' && req.url === '/students') {
 
-    students.push(ob);
+        let body = '';
 
-    res.send("Student inserted successfully");
+        req.on('data', function(chunk) {
+            body += chunk;
+        });
 
-});
+        req.on('end', function() {
 
-// DISPLAY
-app.get("/display", function(req, res) {
+            let ob = JSON.parse(body);
 
-    res.json(students);
+            students.push(ob);
 
-});
+            res.writeHead(200, {'Content-Type': 'text/plain'});
+            res.end("Student inserted successfully");
 
-// UPDATE
-app.put("/update/:id", function(req, res) {
+        });
 
-    var id = Number(req.params.id);
+    }
 
-    var found = false;
+    // READ - Display
+    else if (req.method === 'GET' && req.url === '/students') {
 
-    for (var i = 0; i < students.length; i++) {
+        res.writeHead(200, {'Content-Type': 'application/json'});
 
-        if (students[i].id == id) {
+        res.end(JSON.stringify(students));
 
-            students[i].name = req.body.name;
-            students[i].marks = req.body.marks;
+    }
 
-            found = true;
-            break;
+    // UPDATE
+    else if (req.method === 'PUT' && req.url.startsWith('/students/')) {
+
+        let id = Number(req.url.split('/')[2]);
+
+        let body = '';
+
+        req.on('data', function(chunk) {
+            body += chunk;
+        });
+
+        req.on('end', function() {
+
+            let data = JSON.parse(body);
+
+            let found = false;
+
+            for (let i = 0; i < students.length; i++) {
+
+                if (students[i].id === id) {
+
+                    students[i].name = data.name;
+                    students[i].marks = data.marks;
+
+                    found = true;
+                    break;
+                }
+            }
+
+            res.writeHead(found ? 200 : 404);
+            res.end(found ? "Student updated successfully" : "Student not found");
+
+        });
+
+    }
+
+    // DELETE
+    else if (req.method === 'DELETE' && req.url.startsWith('/students/')) {
+
+        let id = Number(req.url.split('/')[2]);
+
+        let found = false;
+
+        for (let i = 0; i < students.length; i++) {
+
+            if (students[i].id === id) {
+
+                students.splice(i, 1);
+
+                found = true;
+                break;
+            }
         }
+
+        res.writeHead(found ? 200 : 404);
+        res.end(found ? "Student deleted successfully" : "Student not found");
+
     }
 
-    if (found) {
-        res.send("Student updated successfully");
-    }
     else {
-        res.send("Student not found");
+
+        res.writeHead(404);
+        res.end("Route not found");
+
     }
 
 });
 
-// DELETE
-app.delete("/delete/:id", function(req, res) {
-
-    var id = Number(req.params.id);
-
-    var found = false;
-
-    for (var i = 0; i < students.length; i++) {
-
-        if (students[i].id == id) {
-
-            students.splice(i, 1);
-            found = true;
-            break;
-        }
-    }
-
-    if (found) {
-        res.send("Student deleted successfully");
-    }
-    else {
-        res.send("Student not found");
-    }
-
-});
-
-// Start server
-app.listen(3000, function() {
-
+server.listen(3000, function() {
     console.log("Server running on port 3000");
-
 });
