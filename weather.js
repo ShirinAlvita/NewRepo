@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 
 import {
@@ -14,10 +14,8 @@ import {
 } from 'chart.js';
 
 import { Line } from 'react-chartjs-2';
-
 import './App.css';
 
-// Register Chart.js components
 ChartJS.register(
     CategoryScale,
     LinearScale,
@@ -31,15 +29,24 @@ ChartJS.register(
 function App() {
 
     const [city, setCity] = useState("");
+    const [search, setSearch] = useState(0);
     const [weather, setWeather] = useState(null);
     const [chartData, setChartData] = useState(null);
     const [message, setMessage] = useState("");
 
-    // Fetch weather information using Axios
-    async function getWeather() {
+    function getWeather() {
 
-        if (city == "") {
+        if (city.trim() === "") {
             alert("Please enter city name");
+            return;
+        }
+
+        setSearch(search + 1);
+    }
+
+    useEffect(() => {
+
+        if (search === 0) {
             return;
         }
 
@@ -49,102 +56,108 @@ function App() {
 
         const key = "YOUR_API_KEY";
 
-        try {
+        // Get city coordinates
+        const geoURL =
+            "https://api.openweathermap.org/geo/1.0/direct?q="
+            + encodeURIComponent(city)
+            + "&limit=1&appid=" + key;
 
-            // Get city coordinates
-            const geoURL =
-                "https://api.openweathermap.org/geo/1.0/direct?q="
-                + encodeURIComponent(city)
-                + "&limit=1&appid=" + key;
+        axios.get(geoURL)
 
-            const geoResponse = await axios.get(geoURL);
+            .then(response => {
 
-            const geoData = geoResponse.data;
+                const geoData = response.data;
 
-            if (geoData.length == 0) {
-                throw new Error("City not found");
-            }
+                if (geoData.length === 0) {
+                    throw new Error("City not found");
+                }
 
-            var lat = geoData[0].lat;
-            var lon = geoData[0].lon;
+                const lat = geoData[0].lat;
+                const lon = geoData[0].lon;
 
-
-            // Get current weather
-            const currentURL =
-                "https://api.openweathermap.org/data/2.5/weather?lat="
-                + lat + "&lon=" + lon
-                + "&appid=" + key + "&units=metric";
-
-            const currentResponse = await axios.get(currentURL);
-
-            const currentData = currentResponse.data;
-
-            setWeather(currentData);
-
-
-            // Get historical weather for previous 5 days
-            var labels = [];
-            var temperatures = [];
-
-            for (var i = 5; i >= 1; i--) {
-
-                var date = new Date();
-
-                date.setDate(date.getDate() - i);
-
-                var timestamp = Math.floor(date.getTime() / 1000);
-
-                const historyURL =
-                    "https://api.openweathermap.org/data/3.0/onecall/timemachine?lat="
+                // Get current weather
+                const currentURL =
+                    "https://api.openweathermap.org/data/2.5/weather?lat="
                     + lat + "&lon=" + lon
-                    + "&dt=" + timestamp
-                    + "&appid=" + key
-                    + "&units=metric";
+                    + "&appid=" + key + "&units=metric";
 
-                const historyResponse = await axios.get(historyURL);
+                return axios.get(currentURL);
 
-                const historyData = historyResponse.data;
+            })
 
-                labels.push(date.toLocaleDateString());
+            .then(response => {
 
-                temperatures.push(historyData.data[0].temp);
+                setWeather(response.data);
 
-            }
+                const lat = response.data.coord.lat;
+                const lon = response.data.coord.lon;
 
+                let labels = [];
+                let temperatures = [];
+                let requests = [];
 
-            // Chart data
-            setChartData({
+                // Get previous 5 days weather
+                for (let i = 5; i >= 1; i--) {
 
-                labels: labels,
+                    let date = new Date();
+                    date.setDate(date.getDate() - i);
 
-                datasets: [
+                    let timestamp =
+                        Math.floor(date.getTime() / 1000);
 
-                    {
-                        label: "Temperature (°C)",
-                        data: temperatures,
-                        borderColor: "blue",
-                        backgroundColor: "lightblue",
-                        tension: 0.3
-                    }
+                    const historyURL =
+                        "https://api.openweathermap.org/data/3.0/onecall/timemachine?lat="
+                        + lat + "&lon=" + lon
+                        + "&dt=" + timestamp
+                        + "&appid=" + key
+                        + "&units=metric";
 
-                ]
+                    labels.push(date.toLocaleDateString());
+
+                    requests.push(axios.get(historyURL));
+
+                }
+
+                // Get all historical responses
+                return axios.all(requests).then(responses => {
+
+                    responses.forEach(response => {
+                        temperatures.push(response.data.data[0].temp);
+                    });
+
+                    setChartData({
+
+                        labels: labels,
+
+                        datasets: [
+                            {
+                                label: "Temperature (°C)",
+                                data: temperatures,
+                                borderColor: "blue",
+                                backgroundColor: "lightblue",
+                                tension: 0.3
+                            }
+                        ]
+
+                    });
+
+                });
+
+            })
+
+            .then(() => {
+                setMessage("");
+            })
+
+            .catch(error => {
+
+                setMessage(
+                    error.response?.data?.message || error.message
+                );
 
             });
 
-            setMessage("");
-
-        }
-
-        catch(error) {
-
-            setMessage(
-                error.response?.data?.message || error.message
-            );
-
-        }
-
-    }
-
+    }, [search]);
 
     return (
 
@@ -164,7 +177,6 @@ function App() {
             </button>
 
             <p>{message}</p>
-
 
             {weather && (
 
@@ -191,7 +203,6 @@ function App() {
                 </div>
 
             )}
-
 
             {chartData && (
 
