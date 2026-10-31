@@ -1,225 +1,251 @@
-
-import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import React, { useEffect, useState } from "react";
+import axios from "axios";
 
 import {
-    Chart as ChartJS,
-    CategoryScale,
-    LinearScale,
-    PointElement,
-    LineElement,
-    Title,
-    Tooltip,
-    Legend
-} from 'chart.js';
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  Title,
+  Tooltip,
+  Legend
+} from "chart.js";
 
-import { Line } from 'react-chartjs-2';
-import './App.css';
+import { Line } from "react-chartjs-2";
 
 ChartJS.register(
-    CategoryScale,
-    LinearScale,
-    PointElement,
-    LineElement,
-    Title,
-    Tooltip,
-    Legend
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  Title,
+  Tooltip,
+  Legend
 );
 
 function App() {
+  const [weather, setWeather] = useState(null);
+  const [history, setHistory] = useState([]);
+  const [error, setError] = useState("");
 
-    const [city, setCity] = useState("");
-    const [search, setSearch] = useState(0);
-    const [weather, setWeather] = useState(null);
-    const [chartData, setChartData] = useState(null);
-    const [message, setMessage] = useState("");
+  // Put your API key here
+  const API_KEY = "cb375db859dc552487a4d03fab36d93e";
+  const city = "Hyderabad";
 
-    function getWeather() {
+  useEffect(() => {
 
-        if (city.trim() === "") {
-            alert("Please enter city name");
-            return;
+    // -----------------------------
+    // 1. CURRENT WEATHER
+    // -----------------------------
+
+    axios
+      .get(
+        `https://api.openweathermap.org/data/2.5/weather?q=${city}&appid=${API_KEY}&units=metric`
+      )
+      .then((response) => {
+        console.log("Current Weather:", response.data);
+
+        setWeather(response.data);
+      })
+      .catch((error) => {
+        console.log(
+          "Current Weather Error:",
+          error.response?.data || error.message
+        );
+
+        setError(
+          error.response?.data?.message ||
+          "Unable to fetch current weather"
+        );
+      });
+
+
+    // -----------------------------
+    // 2. FORECAST WEATHER
+    // -----------------------------
+
+    axios
+      .get(
+        `https://api.openweathermap.org/data/2.5/forecast?q=${city}&appid=${API_KEY}&units=metric`
+      )
+      .then((response) => {
+
+        console.log("Forecast Response:", response.data);
+
+        const data = response.data.list.slice(0, 8);
+
+        const result = data.map((item) => ({
+          time: item.dt_txt,
+          temperature: item.main.temp
+        }));
+
+        console.log("Chart Data:", result);
+
+        setHistory(result);
+      })
+      .catch((error) => {
+
+        console.log(
+          "Forecast Error:",
+          error.response?.data || error.message
+        );
+
+        setError(
+          error.response?.data?.message ||
+          "Unable to fetch forecast data"
+        );
+      });
+
+  }, []);
+
+
+  // -----------------------------
+  // CHART DATA
+  // -----------------------------
+
+  const chartData = {
+    labels: history.map((item) => item.time),
+
+    datasets: [
+      {
+        label: "Temperature (°C)",
+
+        data: history.map((item) => item.temperature),
+
+        borderWidth: 3,
+
+        pointRadius: 5,
+
+        tension: 0.3
+      }
+    ]
+  };
+
+
+  // -----------------------------
+  // CHART OPTIONS
+  // -----------------------------
+
+  const chartOptions = {
+    responsive: true,
+
+    plugins: {
+      legend: {
+        display: true
+      },
+
+      title: {
+        display: true,
+        text: "Hyderabad Weather Forecast"
+      }
+    },
+
+    scales: {
+      y: {
+        beginAtZero: false,
+
+        title: {
+          display: true,
+          text: "Temperature (°C)"
         }
+      },
 
-        setSearch(search + 1);
+      x: {
+        title: {
+          display: true,
+          text: "Date and Time"
+        }
+      }
     }
+  };
 
-    useEffect(() => {
 
-        if (search === 0) {
-            return;
-        }
+  // -----------------------------
+  // DISPLAY
+  // -----------------------------
 
-        setMessage("Loading weather information...");
-        setWeather(null);
-        setChartData(null);
+  return (
+    <div
+      style={{
+        width: "80%",
+        margin: "30px auto",
+        fontFamily: "Arial"
+      }}
+    >
 
-        const key = "YOUR_API_KEY";
+      <h1>Weather Information</h1>
 
-        // Get city coordinates
-        const geoURL =
-            "https://api.openweathermap.org/geo/1.0/direct?q="
-            + encodeURIComponent(city)
-            + "&limit=1&appid=" + key;
 
-        axios.get(geoURL)
+      {/* ERROR MESSAGE */}
 
-            .then(response => {
+      {error && (
+        <div
+          style={{
+            backgroundColor: "#ffe6e6",
+            padding: "10px",
+            marginBottom: "20px",
+            border: "1px solid red"
+          }}
+        >
+          <strong>Error:</strong> {error}
+        </div>
+      )}
 
-                const geoData = response.data;
 
-                if (geoData.length === 0) {
-                    throw new Error("City not found");
-                }
+      {/* CURRENT WEATHER */}
 
-                const lat = geoData[0].lat;
-                const lon = geoData[0].lon;
+      {weather ? (
+        <div>
 
-                // Get current weather
-                const currentURL =
-                    "https://api.openweathermap.org/data/2.5/weather?lat="
-                    + lat + "&lon=" + lon
-                    + "&appid=" + key + "&units=metric";
+          <h2>{weather.name}</h2>
 
-                return axios.get(currentURL);
+          <p>
+            <strong>Temperature:</strong>{" "}
+            {weather.main.temp} °C
+          </p>
 
-            })
+          <p>
+            <strong>Feels Like:</strong>{" "}
+            {weather.main.feels_like} °C
+          </p>
 
-            .then(response => {
+          <p>
+            <strong>Humidity:</strong>{" "}
+            {weather.main.humidity} %
+          </p>
 
-                setWeather(response.data);
+          <p>
+            <strong>Weather:</strong>{" "}
+            {weather.weather[0].description}
+          </p>
 
-                const lat = response.data.coord.lat;
-                const lon = response.data.coord.lon;
-
-                let labels = [];
-                let temperatures = [];
-                let requests = [];
-
-                // Get previous 5 days weather
-                for (let i = 5; i >= 1; i--) {
-
-                    let date = new Date();
-                    date.setDate(date.getDate() - i);
-
-                    let timestamp =
-                        Math.floor(date.getTime() / 1000);
-
-                    const historyURL =
-                        "https://api.openweathermap.org/data/3.0/onecall/timemachine?lat="
-                        + lat + "&lon=" + lon
-                        + "&dt=" + timestamp
-                        + "&appid=" + key
-                        + "&units=metric";
-
-                    labels.push(date.toLocaleDateString());
-
-                    requests.push(axios.get(historyURL));
-
-                }
-
-                // Get all historical responses
-                return axios.all(requests).then(responses => {
-
-                    responses.forEach(response => {
-                        temperatures.push(response.data.data[0].temp);
-                    });
-
-                    setChartData({
-
-                        labels: labels,
-
-                        datasets: [
-                            {
-                                label: "Temperature (°C)",
-                                data: temperatures,
-                                borderColor: "blue",
-                                backgroundColor: "lightblue",
-                                tension: 0.3
-                            }
-                        ]
-
-                    });
-
-                });
-
-            })
-
-            .then(() => {
-                setMessage("");
-            })
-
-            .catch(error => {
-
-                setMessage(
-                    error.response?.data?.message || error.message
-                );
-
-            });
-
-    }, [search]);
-
-    return (
-
-        <div className="container">
-
-            <h1>Weather Information</h1>
-
-            <input
-                type="text"
-                placeholder="Enter city name"
-                value={city}
-                onChange={(e) => setCity(e.target.value)}
-            />
-
-            <button onClick={getWeather}>
-                Get Weather
-            </button>
-
-            <p>{message}</p>
-
-            {weather && (
-
-                <div>
-
-                    <h2>{weather.name}</h2>
-
-                    <h3>
-                        Temperature: {weather.main.temp} °C
-                    </h3>
-
-                    <p>
-                        Weather: {weather.weather[0].description}
-                    </p>
-
-                    <p>
-                        Humidity: {weather.main.humidity}%
-                    </p>
-
-                    <p>
-                        Wind Speed: {weather.wind.speed} m/s
-                    </p>
-
-                </div>
-
-            )}
-
-            {chartData && (
-
-                <div className="chart">
-
-                    <h2>Historical Temperature</h2>
-
-                    <Line data={chartData} />
-
-                </div>
-
-            )}
+          <p>
+            <strong>Wind Speed:</strong>{" "}
+            {weather.wind.speed} m/s
+          </p>
 
         </div>
+      ) : (
+        <p>Loading current weather...</p>
+      )}
 
-    );
 
+      {/* WEATHER GRAPH */}
+
+      <h2>Weather Graph</h2>
+
+      {history.length > 0 ? (
+        <Line
+          data={chartData}
+          options={chartOptions}
+        />
+      ) : (
+        <p>Loading weather graph...</p>
+      )}
+
+    </div>
+  );
 }
 
 export default App;
